@@ -1,0 +1,12 @@
+{
+  "name": "lan-hub",
+  "version": "1.0.0",
+  "description": "Hub de red LAN con WebSocket - Chat y visibilidad de dispositivos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
