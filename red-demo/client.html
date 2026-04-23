@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PokeNet Hub</title>
+<title>LinkNet Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -634,23 +634,20 @@
 <div id="name-modal">
   <div class="modal-box">
     <span class="modal-sprite">🌐</span>
-    <h2>POKENET HUB</h2>
+    <h2>LINKNET HUB</h2>
     <p>¡Elige un nombre para tu dispositivo<br>y únete a la red!</p>
     <input type="text" id="name-input" placeholder="Ej: PC-Rojo, Tablet-Misty..." maxlength="24" autofocus>
-    <button class="btn" onclick="connect()">¡CONECTAR! →</button>
+    <button class="btn" onclick="connect()">¡CONECTAR!</button>
   </div>
 </div>
 
 <!-- HEADER -->
 <header>
-  <div class="logo">POKE<span>NET</span></div>
+  <div class="logo">LINK<span>NET</span></div>
   <div class="status-bar">
     <div class="status-pill">
       <span class="dot offline" id="status-dot"></span>
       <span id="status-text">Desconectado</span>
-    </div>
-    <div class="status-pill" id="my-ip-display" style="display:none">
-      📍 <span id="my-ip">—</span>
     </div>
   </div>
 </header>
@@ -660,7 +657,7 @@
   <!-- DEVICES -->
   <div class="devices-panel">
     <div class="panel-header">
-      <span>ENTRENADORES</span>
+      <span>USUARIOS</span>
       <span id="device-count">0</span>
     </div>
     <div class="devices-list" id="devices-list">
@@ -677,7 +674,7 @@
   <div class="chat-panel">
     <div class="chat-header">
       <div>
-        <div class="chat-title">CHAT POKECENTER</div>
+        <div class="chat-title">CHAT</div>
         <div class="chat-subtitle" id="chat-subtitle">📢 Canal general</div>
       </div>
       <button class="btn pink sm" onclick="clearChat()">Limpiar</button>

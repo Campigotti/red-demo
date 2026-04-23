@@ -6,22 +6,55 @@ const os = require('os');
 
 const PORT = 3000;
 
-// Obtener la IP local del servidor
-function getLocalIP() {
+
+   //OBTENER IPS DISPONIBLES
+
+function getAllIPs() {
   const interfaces = os.networkInterfaces();
+  const ips = [];
+
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+        ips.push({
+          name,
+          ip: iface.address
+        });
       }
     }
   }
-  return 'localhost';
+
+  return ips;
 }
 
-const SERVER_IP = getLocalIP();
 
-// Servidor HTTP para servir el cliente
+ //  SELECCIONAR ip
+
+function getBestIP() {
+  const ips = getAllIPs();
+
+  for (const i of ips) {
+    const ip = i.ip;
+
+    // Ignorar redes de máquinas virtuales comunes
+    if (
+      ip.startsWith('10.0.2.') ||       // VirtualBox NAT
+      ip.startsWith('192.168.56.') ||   // VirtualBox Host-Only
+      ip.startsWith('172.17.')          // Docker
+    ) continue;
+
+    return ip;
+  }
+
+  // fallback: primera disponible
+  return ips.length > 0 ? ips[0].ip : 'localhost';
+}
+
+const SERVER_IP = getBestIP();
+
+
+ //  SERVIDOR HTTP
+
 const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/index.html') {
     fs.readFile(path.join(__dirname, 'client.html'), (err, data) => {
@@ -39,14 +72,14 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// Servidor WebSocket
+
+ //  WEBSOCKET SERVER
+
 const wss = new WebSocket.Server({ server });
 
-// Mapa de clientes conectados
-const clients = new Map(); // id -> { ws, name, ip, color, joinedAt, status }
+const clients = new Map();
 let nextId = 1;
 
-// Colores para los dispositivos
 const COLORS = [
   '#00f5d4', '#fee440', '#f15bb5', '#9b5de5', '#00bbf9',
   '#fb5607', '#8338ec', '#3a86ff', '#06d6a0', '#ef233c'
@@ -85,12 +118,14 @@ function getClientList() {
   }));
 }
 
+
+//   CONEXIONES
+
 wss.on('connection', (ws, req) => {
   const clientIP = req.socket.remoteAddress.replace('::ffff:', '');
   const clientId = nextId++;
   const color = getColorForClient(clientId);
 
-  // Registrar cliente temporal
   clients.set(clientId, {
     ws,
     name: `Dispositivo-${clientId}`,
@@ -100,9 +135,8 @@ wss.on('connection', (ws, req) => {
     status: 'online'
   });
 
-  console.log(`[+] Nuevo cliente #${clientId} desde ${clientIP}`);
+  console.log(`[+] Cliente #${clientId} desde ${clientIP}`);
 
-  // Enviar bienvenida al cliente
   ws.send(JSON.stringify({
     type: 'welcome',
     id: clientId,
@@ -111,13 +145,18 @@ wss.on('connection', (ws, req) => {
     clients: getClientList()
   }));
 
-  // Notificar a todos del nuevo cliente
   broadcast({
     type: 'client_joined',
-    client: { id: clientId, name: clients.get(clientId).name, ip: clientIP, color, joinedAt: Date.now(), status: 'online' }
+    client: {
+      id: clientId,
+      name: clients.get(clientId).name,
+      ip: clientIP,
+      color,
+      joinedAt: Date.now(),
+      status: 'online'
+    }
   }, clientId);
 
-  // Manejar mensajes
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
@@ -131,7 +170,13 @@ wss.on('connection', (ws, req) => {
         client.name = msg.name.substring(0, 24) || `Dispositivo-${clientId}`;
         broadcastAll({
           type: 'client_updated',
-          client: { id: clientId, name: client.name, ip: client.ip, color: client.color, status: client.status }
+          client: {
+            id: clientId,
+            name: client.name,
+            ip: client.ip,
+            color: client.color,
+            status: client.status
+          }
         });
         break;
 
@@ -144,7 +189,7 @@ wss.on('connection', (ws, req) => {
           fromColor: client.color,
           text: msg.text.substring(0, 500),
           timestamp: Date.now(),
-          target: msg.target || null // null = broadcast, id = privado
+          target: msg.target || null
         });
         break;
 
@@ -169,7 +214,13 @@ wss.on('connection', (ws, req) => {
         client.status = msg.status || 'online';
         broadcastAll({
           type: 'client_updated',
-          client: { id: clientId, name: client.name, ip: client.ip, color: client.color, status: client.status }
+          client: {
+            id: clientId,
+            name: client.name,
+            ip: client.ip,
+            color: client.color,
+            status: client.status
+          }
         });
         break;
     }
@@ -178,7 +229,7 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     const client = clients.get(clientId);
     if (client) {
-      console.log(`[-] Cliente #${clientId} (${client.name}) desconectado`);
+      console.log(`[-] Cliente #${clientId} desconectado`);
       clients.delete(clientId);
       broadcast({
         type: 'client_left',
@@ -193,13 +244,26 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+
+//   INICIAR SERVIDOR
+
 server.listen(PORT, '0.0.0.0', () => {
+
+  const ips = getAllIPs();
+
   console.log(`\n${'='.repeat(50)}`);
   console.log(`  LAN HUB - Servidor activo`);
   console.log(`${'='.repeat(50)}`);
-  console.log(`  IP del servidor: ${SERVER_IP}`);
-  console.log(`  Puerto: ${PORT}`);
-  console.log(`\n  Los dispositivos deben abrir:`);
+
+  console.log(`\n  IP seleccionada automáticamente: ${SERVER_IP}\n`);
+
+  console.log(`  Todas las interfaces disponibles:`);
+  ips.forEach(i => {
+    console.log(`   - ${i.name}: ${i.ip}`);
+  });
+
+  console.log(`\n  Acceso recomendado:`);
   console.log(`  http://${SERVER_IP}:${PORT}`);
+
   console.log(`${'='.repeat(50)}\n`);
 });
